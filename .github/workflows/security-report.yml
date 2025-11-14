@@ -1,8 +1,8 @@
 name: Security Report
 on:
   push:
-    branches: [ main ] # Runs when you push to main
-  workflow_dispatch: # Allows you to run it manually
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   dependency-check:
@@ -10,20 +10,20 @@ jobs:
     steps:
       # Step 1: Check out your code
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Step 2: Run the scan and tell it to create 'report.html'
       - name: Run OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@v5
+        # This is corrected to v6
+        uses: dependency-check/Dependency-Check_Action@v6
         env:
-          # This scans everything
           SCAN_PATH: "." 
-          # This tells it to create an HTML file
           FORMAT: "HTML"
           
       # Step 3: Save the report as a downloadable file
       - name: Upload Report
-        uses: actions/upload-artifact@v3
+        # This is corrected to v4
+        uses: actions/upload-artifact@v4
         with:
-          name: security-report # This will be the name of the download
-          path: '**/dependency-check-report.html' # This finds the report file
+          name: security-report 
+          path: '**/dependency-check-report.html'
