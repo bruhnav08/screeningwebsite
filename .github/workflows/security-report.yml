@@ -8,18 +8,20 @@ jobs:
   dependency-check:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out your code (uses v4)
+      # Step 1: Check out your code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Run the scan (uses @main)
+      # Step 2: Run the scan
+      # This block is now fixed
       - name: Run OWASP Dependency-Check
         uses: dependency-check/Dependency-Check_Action@main
-        env:
-          SCAN_PATH: "." 
-          FORMAT: "HTML"
-          
-      # Step 3: Save the report as a downloadable file (uses v4)
+        with:
+          project: '${{ github.repository }}' # <-- This adds the project name
+          path: '.'                          # This tells it to scan everything
+          format: 'HTML'                     # This tells it to make an HTML file
+
+      # Step 3: Save the report
       - name: Upload Report
         uses: actions/upload-artifact@v4
         with:
