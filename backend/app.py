@@ -1,7 +1,6 @@
 import time
 from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
-# --- FIX: Added timezone to the import ---
 from datetime import datetime as dt, timedelta, timezone 
 import jwt
 from functools import wraps
@@ -563,17 +562,14 @@ def _handle_admin_profile_pic_update(file, user_to_update):
 
 # --- Admin/Dashboard Routes ---
 
-def _build_user_query(args):
-    """Helper function to build the MongoDB query from request args."""
-    search = args.get('search', '').lower()
-    roles_str = args.get('roles', '')
-    start_date_str = args.get('start_date', '')
-    end_date_str = args.get('end_date', '')
-    account_types_str = args.get('account_types', '')
-    sensitivity_str = args.get('sensitivity', '')
-    
-    query_filters = []
-    
+# --- START: REFACTOR FOR L566 (Cognitive Complexity) ---
+#
+# Reason: The old _build_user_query was 17 complexity.
+# We break it into 5 small functions, each with a complexity of ~2-3.
+# The new _build_user_query just calls them and has a complexity of 0.
+
+def _add_search_filter(search, query_filters):
+    """Adds search filter to query_filters list."""
     if search:
         query_filters.append({
             "$or": [
@@ -581,39 +577,52 @@ def _build_user_query(args):
                 {"email": {"$regex": search, "$options": "i"}},
             ]
         })
-    
-    if roles_str:
-        roles_list = roles_str.split(',')
-        if roles_list:
-            query_filters.append({"role": {"$in": roles_list}})
 
-    if account_types_str:
-        account_types_list = account_types_str.split(',')
-        if account_types_list:
-            query_filters.append({"account_type": {"$in": account_types_list}})
-            
+def _add_list_filter(list_str, field_name, query_filters):
+    """Adds a list filter (e.g., for roles) to query_filters list."""
+    if list_str:
+        item_list = list_str.split(',')
+        if item_list:
+            query_filters.append({field_name: {"$in": item_list}})
+
+def _add_sensitivity_filter(sensitivity_str, query_filters):
+    """Adds sensitivity filter to query_filters list."""
     if sensitivity_str == 'true':
         query_filters.append({"needs_sensitive_storage": True})
     elif sensitivity_str == 'false':
         query_filters.append({"needs_sensitive_storage": False})
 
+def _add_date_filter(start_date_str, end_date_str, query_filters):
+    """Adds date range filter to query_filters list."""
     date_query = {}
     if start_date_str:
         try:
             date_query['$gte'] = dt.strptime(start_date_str, '%Y-%m-%d')
         except ValueError:
-            pass 
+            pass  # Ignore invalid date
     if end_date_str:
         try:
             end_dt = dt.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1, microseconds=-1)
             date_query['$lte'] = end_dt
         except ValueError:
-            pass
-            
+            pass  # Ignore invalid date
+    
     if date_query:
         query_filters.append({"created_date": date_query})
 
+def _build_user_query(args):
+    """Helper function to build the MongoDB query from request args."""
+    query_filters = []
+    
+    _add_search_filter(args.get('search', ''), query_filters)
+    _add_list_filter(args.get('roles', ''), "role", query_filters)
+    _add_list_filter(args.get('account_types', ''), "account_type", query_filters)
+    _add_sensitivity_filter(args.get('sensitivity', ''), query_filters)
+    _add_date_filter(args.get('start_date', ''), args.get('end_date', ''), query_filters)
+
     return {"$and": query_filters} if query_filters else {}
+# --- END: REFACTOR FOR L566 ---
+
 
 @app.route('/users', methods=['GET'])
 @token_required
@@ -627,6 +636,7 @@ def get_users(current_user):
     sort_order_str = request.args.get('sort_order', 'asc')
     sort_order = ASCENDING if sort_order_str == 'asc' else DESCENDING
     
+    # Build query using the helper
     query = _build_user_query(request.args)
         
     total_users = user_collection.count_documents(query)
@@ -705,12 +715,7 @@ def create_user(current_user):
     return jsonify(serialize_user(new_user, include_email=True)), 201
 
 
-# --- START: REFACTOR FOR L565 (Cognitive Complexity) ---
-#
-# Reason: The old _validate_staff_update was 17 complexity.
-# We break it into 5 small functions, each with a complexity of ~3-5.
-# The new _validate_staff_update just calls them and has a complexity of 0.
-
+# --- Staff Update Validation Helpers (for L565 fix) ---
 def _validate_staff_name(data, errors):
     """Validates name for staff update."""
     name = data.get('name')
@@ -798,13 +803,9 @@ def update_user(current_user, user_id):
     
     updated_user = user_collection.find_one({"_id": ObjectId(user_id)})
     return jsonify(serialize_user(updated_user, include_email=True)), 200
-# --- END: REFACTOR FOR L565 ---
 
 
-# --- START: REFACTOR FOR L751 (Cognitive Complexity) ---
-#
-# Reason: The original delete_user function was 17 complexity
-# because it handled file deletions. We extract that logic.
+# --- User Deletion Helpers (for Complexity) ---
 
 def _delete_user_gallery_files(user_to_delete):
     """Helper to delete all files in a user's gallery."""
@@ -848,7 +849,6 @@ def delete_user(current_user, user_id):
     except Exception as e:
         print(f"Error deleting user: {e}")
         return jsonify({"message": "Invalid User ID or deletion error"}), 400
-# --- END: REFACTOR FOR L751 ---
 
 
 @app.route('/admin/user/<string:user_id>/file', methods=['POST'])

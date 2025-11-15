@@ -650,7 +650,6 @@ function useUserDashboardState(token, currentUser) {
     
     // Setters
     setSearchTerm, setCurrentPage, setStartDate, setEndDate, setIsFilterMenuOpen,
-    // --- FIX 1/2: Return the setters from the hook ---
     setUserModalError, setEditingUser, setIsUserModalOpen,
 
     // Handlers
@@ -670,195 +669,151 @@ function getFullImageUrl(url) {
   if (url.startsWith('http') || url.startsWith('blob:')) {
     return url;
   }
-  // Use api.baseUrl which is globally available from the import
   return `${api.baseUrl}${url}`;
 }
 
+// --- 3. NEW Components to render the JSX ---
+// These are simple "dumb" components that just receive props.
 
-// --- View 4: UserDashboard (This is now simple) ---
-export function UserDashboard({ token, onLogout, currentUser }) {
-  
-  // Call the custom hook to get all state and logic
-  const {
-    users, loading, error, 
-    isStaffModalOpen, staffModalMessage, editingStaff,
-    isUserModalOpen, userModalError, editingUser,
-    expandedRowId, adminAddFileRef, fileManagementError,
-    currentPage, totalPages,
-    searchTerm, sortBy, sortOrder, 
-    selectedRoles, startDate, endDate, isFilterMenuOpen, filterMenuRef,
-    selectedAccountTypes, selectedSensitivity,
-    isAdmin, initialUserData, initialStaffData,
-    
-    // Setters
-    setSearchTerm, setCurrentPage, setStartDate, setEndDate, setIsFilterMenuOpen,
-    // --- FIX 2/2: Destructure the setters for use ---
-    setUserModalError, setEditingUser, setIsUserModalOpen,
-
-    // Handlers
-    handleSort, handleRoleChange, handleAccountTypeChange, handleSensitivityChange,
-    handleClearFilters, handleDownload, handleSaveStaff, handleSaveUser,
-    handleDeleteUser, handleCreateStaff, closeStaffModal, closeUserModal,
-    handleRowClick, handleAdminFileAddClick, handleAdminFileUpload,
-    handleAdminFileDelete, handleEditClick
-  } = useUserDashboardState(token, currentUser);
-
+function DashboardHeader({ currentUser, isAdmin, onLogout, onCreateUserClick, onCreateStaffClick }) {
   return (
-    <div className="w-full max-w-6xl mx-auto p-4">
+    <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Welcome, <span className="font-medium">{currentUser.name}</span> (<span className="capitalize font-medium">{currentUser.role}</span>)
+        </p>
+      </div>
+      <div className="flex space-x-2">
+        {isAdmin && (
+          <>
+            <button
+              onClick={onCreateUserClick}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              Create User
+            </button>
+            <button
+              onClick={onCreateStaffClick}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Create Staff
+            </button>
+          </>
+        )}
+        <button
+          onClick={onLogout}
+          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SearchFilterBar({ 
+  searchTerm, onSearchChange, filterMenuRef, onFilterToggle, isFilterMenuOpen,
+  filterProps 
+}) {
+  return (
+    <div className="flex flex-col md:flex-row gap-4 mb-4">
       <input
-        type="file"
-        ref={adminAddFileRef}
-        onChange={handleAdminFileUpload}
-        className="hidden"
+        type="text"
+        placeholder="Search by name or email..."
+        value={searchTerm}
+        onChange={onSearchChange}
+        className="w-full md:flex-1 px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
       />
-
-      {/* Header */}
-      <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Welcome, <span className="font-medium">{currentUser.name}</span> (<span className="capitalize font-medium">{currentUser.role}</span>)
-          </p>
-        </div>
-        <div className="flex space-x-2">
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => { setUserModalError(null); setEditingUser(initialUserData); setIsUserModalOpen(true); }}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                Create User
-              </button>
-              <button
-                onClick={handleCreateStaff}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                Create Staff
-              </button>
-            </>
-          )}
-          <button
-            onClick={onLogout}
-            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-          >
-            Logout
-          </button>
-        </div>
+      <div className="relative" ref={filterMenuRef}>
+        <button
+          onClick={onFilterToggle}
+          className="w-full md:w-auto px-4 py-2 flex items-center justify-center gap-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+          </svg>
+          Filters
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+        <FilterMenu isOpen={isFilterMenuOpen} {...filterProps} />
       </div>
+    </div>
+  );
+}
 
-      {/* Search and Filter Bar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          value={searchTerm}
-          onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
-          className="w-full md:flex-1 px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-        />
-        
-        <div className="relative" ref={filterMenuRef}>
-          <button
-            onClick={() => setIsFilterMenuOpen(prev => !prev)}
-            className="w-full md:w-auto px-4 py-2 flex items-center justify-center gap-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-            </svg>
-            Filters
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-          
-          <FilterMenu
-            isOpen={isFilterMenuOpen}
-            selectedRoles={selectedRoles}
-            onRoleChange={handleRoleChange}
-            selectedAccountTypes={selectedAccountTypes}
-            onAccountTypeChange={handleAccountTypeChange}
-            selectedSensitivity={selectedSensitivity}
-            onSensitivityChange={handleSensitivityChange}
-            startDate={startDate}
-            onStartDateChange={(val) => {setStartDate(val); setCurrentPage(1);}}
-            endDate={endDate}
-            onEndDateChange={(val) => {setEndDate(val); setCurrentPage(1);}}
-            onClearFilters={handleClearFilters}
-          />
-        </div>
-      </div>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-
-      {/* User Table */}
-      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('name')}>
-                Name {sortBy === 'name' && (sortOrder === 'asc' ? '▲' : '▼')}
-              </th>
+function UserTable({ 
+  loading, error, isAdmin, users, expandedRowId, fileManagementError,
+  onSort, onRowClick, onEditClick, onDeleteClick, onFileAddClick, onFileDownload, onFileDelete,
+  sortBy, sortOrder 
+}) {
+  return (
+    <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-700">
+          <tr>
+            <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => onSort('name')}>
+              Name {sortBy === 'name' && (sortOrder === 'asc' ? '▲' : '▼')}
+            </th>
+            <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Email
+            </th>
+            <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => onSort('role')}>
+              Role {sortBy === 'role' && (sortOrder === 'asc' ? '▲' : '▼')}
+            </th>
+            <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Account Type
+            </th>
+            <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Files
+            </th>
+            <th scope="col" className="p-3 text-left text-xs font-method text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => onSort('created_date')}>
+              Joined {sortBy === 'created_date' && (sortOrder === 'asc' ? '▲' : '▼')}
+            </th>
+            {isAdmin && (
               <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Email
+                Actions
               </th>
-              <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('role')}>
-                Role {sortBy === 'role' && (sortOrder === 'asc' ? '▲' : '▼')}
-              </th>
-              <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Account Type
-              </th>
-              <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Files
-              </th>
-              <th scope="col" className="p-3 text-left text-xs font-method text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('created_date')}>
-                Joined {sortBy === 'created_date' && (sortOrder === 'asc' ? '▲' : '▼')}
-              </th>
-              {isAdmin && (
-                <th scope="col" className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {loading ? (
-              <tr><td colSpan={isAdmin ? 7 : 6} className="p-4 text-center text-gray-500 dark:text-gray-400">Loading users...</td></tr>
-            ) : error ? (
-              <tr><td colSpan={isAdmin ? 7 : 6} className="p-4 text-center text-red-500">Failed to load users.</td></tr>
-            ) : (
-              users.map(user => (
-                <UserRow
-                  key={user.id}
-                  user={user}
-                  isAdmin={isAdmin}
-                  isExpanded={expandedRowId === user.id}
-                  onRowClick={handleRowClick}
-                  getFullImageUrl={getFullImageUrl}
-                  onEditClick={handleEditClick}
-                  onDeleteClick={handleDeleteUser}
-                  fileManagementError={fileManagementError}
-                  onFileAddClick={handleAdminFileAddClick}
-                  onFileDownload={handleDownload}
-                  onFileDelete={handleAdminFileDelete}
-                />
-              ))
             )}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          {loading ? (
+            <tr><td colSpan={isAdmin ? 7 : 6} className="p-4 text-center text-gray-500 dark:text-gray-400">Loading users...</td></tr>
+          ) : error ? (
+            <tr><td colSpan={isAdmin ? 7 : 6} className="p-4 text-center text-red-500">Failed to load users.</td></tr>
+          ) : (
+            users.map(user => (
+              <UserRow
+                key={user.id}
+                user={user}
+                isAdmin={isAdmin}
+                isExpanded={expandedRowId === user.id}
+                onRowClick={onRowClick}
+                getFullImageUrl={getFullImageUrl}
+                onEditClick={onEditClick}
+                onDeleteClick={onDeleteClick}
+                fileManagementError={fileManagementError}
+                onFileAddClick={onFileAddClick}
+                onFileDownload={onFileDownload}
+                onFileDelete={onFileDelete}
+              />
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-      {!loading && !error && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => setCurrentPage(page)}
-        />
-      )}
-
+function DashboardModals({
+  isStaffModalOpen, closeStaffModal, staffModalMessage, editingStaff, initialStaffData, handleSaveStaff,
+  isUserModalOpen, closeUserModal, userModalError, editingUser, initialUserData, handleSaveUser
+}) {
+  return (
+    <>
       {/* --- Staff Modal --- */}
       <Modal isOpen={isStaffModalOpen} onClose={closeStaffModal} title={editingStaff?.id ? 'Edit Staff' : 'Create New Staff'}>
         {staffModalMessage.text && (
@@ -903,6 +858,124 @@ export function UserDashboard({ token, onLogout, currentUser }) {
           showSensitiveStorage={true}
         />
       </Modal>
+    </>
+  );
+}
+
+
+// --- View 4: UserDashboard (This is now simple) ---
+export function UserDashboard({ token, onLogout, currentUser }) {
+  
+  // Call the custom hook to get all state and logic
+  const {
+    users, loading, error, 
+    isStaffModalOpen, staffModalMessage, editingStaff,
+    isUserModalOpen, userModalError, editingUser,
+    expandedRowId, adminAddFileRef, fileManagementError,
+    currentPage, totalPages,
+    searchTerm, sortBy, sortOrder, 
+    selectedRoles, startDate, endDate, isFilterMenuOpen, filterMenuRef,
+    selectedAccountTypes, selectedSensitivity,
+    isAdmin, initialUserData, initialStaffData,
+    
+    // Setters
+    setSearchTerm, setCurrentPage, setStartDate, setEndDate, setIsFilterMenuOpen,
+    setUserModalError, setEditingUser, setIsUserModalOpen,
+
+    // Handlers
+    handleSort, handleRoleChange, handleAccountTypeChange, handleSensitivityChange,
+    handleClearFilters, handleDownload, handleSaveStaff, handleSaveUser,
+    handleDeleteUser, handleCreateStaff, closeStaffModal, closeUserModal,
+    handleRowClick, handleAdminFileAddClick, handleAdminFileUpload,
+    handleAdminFileDelete, handleEditClick
+  } = useUserDashboardState(token, currentUser);
+
+  // --- This is now the *entire* render block ---
+  return (
+    <div className="w-full max-w-6xl mx-auto p-4">
+      <input
+        type="file"
+        ref={adminAddFileRef}
+        onChange={handleAdminFileUpload}
+        className="hidden"
+      />
+
+      <DashboardHeader
+        currentUser={currentUser}
+        isAdmin={isAdmin}
+        onLogout={onLogout}
+        onCreateUserClick={() => { setUserModalError(null); setEditingUser(initialUserData); setIsUserModalOpen(true); }}
+        onCreateStaffClick={handleCreateStaff}
+      />
+
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+        filterMenuRef={filterMenuRef}
+        onFilterToggle={() => setIsFilterMenuOpen(prev => !prev)}
+        isFilterMenuOpen={isFilterMenuOpen}
+        filterProps={{
+          selectedRoles,
+          onRoleChange: handleRoleChange,
+          selectedAccountTypes,
+          onAccountTypeChange: handleAccountTypeChange,
+          selectedSensitivity,
+          onSensitivityChange: handleSensitivityChange,
+          startDate,
+          onStartDateChange: (val) => {setStartDate(val); setCurrentPage(1);},
+          endDate,
+          onEndDateChange: (val) => {setEndDate(val); setCurrentPage(1);},
+          onClearFilters: handleClearFilters,
+        }}
+      />
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      <UserTable
+        loading={loading}
+        error={error}
+        isAdmin={isAdmin}
+        users={users}
+        expandedRowId={expandedRowId}
+        fileManagementError={fileManagementError}
+        onSort={handleSort}
+        onRowClick={handleRowClick}
+        onEditClick={handleEditClick}
+        onDeleteClick={handleDeleteUser}
+        onFileAddClick={handleAdminFileAddClick}
+        onFileDownload={handleDownload}
+        onFileDelete={handleAdminFileDelete}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+      />
+
+      {!loading && !error && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
+      )}
+
+      <DashboardModals
+        isStaffModalOpen={isStaffModalOpen}
+        closeStaffModal={closeStaffModal}
+        staffModalMessage={staffModalMessage}
+        editingStaff={editingStaff}
+        initialStaffData={initialStaffData}
+        handleSaveStaff={handleSaveStaff}
+        isUserModalOpen={isUserModalOpen}
+        closeUserModal={closeUserModal}
+        userModalError={userModalError}
+        editingUser={editingUser}
+        initialUserData={initialUserData}
+        handleSaveUser={handleSaveUser}
+      />
     </div>
   );
 }
